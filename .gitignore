@@ -1,0 +1,10 @@
+# Environment variables
+backend/.env
+ai-service/.env
+frontend/.env.local
+
+# Dependencies
+node_modules/
+venv/
+.next/
+__pycache__/
