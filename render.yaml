@@ -1,0 +1,10 @@
+services:
+  - type: web
+    name: scholarship-platform-backend
+    runtime: node
+    rootDir: backend
+    buildCommand: npm install
+    startCommand: npm start
+    envVars:
+      - key: FRONTEND_URL
+        sync: false
