@@ -1,8 +1,9 @@
 @import "tailwindcss";
 
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --background: #f4efe3;
+  --foreground: #17352e;
+  --surface: #fffaf0;
 }
 
 @theme inline {
@@ -12,15 +13,36 @@
   --font-mono: var(--font-geist-mono);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+* {
+  box-sizing: border-box;
+}
+
+html {
+  scroll-behavior: smooth;
 }
 
 body {
   background: var(--background);
   color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: var(--font-geist-sans), sans-serif;
+  min-height: 100vh;
+  background-image:
+    radial-gradient(circle at top, rgba(244, 184, 96, 0.2), transparent 30%),
+    linear-gradient(180deg, #f7f1e4 0%, #efe6d2 100%);
+}
+
+.hero-backdrop {
+  background-image:
+    radial-gradient(circle at top, rgba(255, 255, 255, 0.35), transparent 48%),
+    linear-gradient(135deg, #0b3b2e, #145c47 45%, #f4b860 100%);
+}
+
+a {
+  color: inherit;
+  text-decoration: none;
+}
+
+::selection {
+  background: #f4b860;
+  color: #17352e;
 }
