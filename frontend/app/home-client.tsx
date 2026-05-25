@@ -94,7 +94,7 @@ function StatCard({
   value: string | number
 }) {
   return (
-    <article className="rounded-3xl border border-[#ddcfb1] bg-[#f7edd8] p-5 text-emerald-950 shadow-lg shadow-emerald-950/10 backdrop-blur">
+    <article className="rounded-3xl border border-[#ddcfb1] bg-[#f7edd8] p-4 text-emerald-950 shadow-lg shadow-emerald-950/10 backdrop-blur sm:p-5">
       <p className="text-sm text-emerald-900/70">{label}</p>
       <p className="mt-3 text-3xl font-semibold">{value}</p>
     </article>
@@ -252,8 +252,8 @@ export default function HomeClient() {
 
   return (
     <main className="relative isolate overflow-hidden">
-      <div className="hero-backdrop absolute inset-x-0 top-0 -z-10 h-128" />
-      <div className="mx-auto flex min-h-screen w-full max-w-7xl flex-col px-5 py-6 sm:px-8 lg:px-10">
+      <div className="hero-backdrop absolute inset-x-0 top-0 -z-10 h-200 sm:h-168 lg:h-128" />
+      <div className="mx-auto flex min-h-screen w-full max-w-7xl flex-col px-4 py-5 sm:px-6 sm:py-6 lg:px-10">
         <header className="flex flex-col gap-4 rounded-4xl border border-white/20 bg-white/10 px-5 py-4 text-white backdrop-blur sm:flex-row sm:items-center sm:justify-between">
           <div>
             <p className="text-xs uppercase tracking-[0.32em] text-white/70">
@@ -261,37 +261,40 @@ export default function HomeClient() {
             </p>
             <h1 className="text-lg font-semibold">Student Funding Hub</h1>
           </div>
-          <div className="flex flex-wrap gap-3">
+          <div className="grid w-full gap-3 sm:flex sm:w-auto sm:flex-wrap">
             <a
               href="#featured"
-              className="rounded-full border border-white/35 px-4 py-2 text-sm font-medium transition hover:bg-white/10"
+              className="rounded-full border border-white/35 px-4 py-2 text-center text-sm font-medium transition hover:bg-white/10"
             >
               Featured Awards
             </a>
             <a
               href="#preview"
-              className="rounded-full bg-[#f8f1de] px-4 py-2 text-sm font-semibold text-emerald-950 transition hover:bg-white"
+              className="rounded-full bg-[#f8f1de] px-4 py-2 text-center text-sm font-semibold text-emerald-950 transition hover:bg-white"
             >
               Dashboard Preview
             </a>
           </div>
         </header>
 
-        <section className="grid flex-1 gap-6 py-10 lg:grid-cols-[1.12fr_0.88fr] lg:items-start lg:py-14">
+        <section className="grid flex-1 gap-6 py-8 lg:grid-cols-[1.12fr_0.88fr] lg:items-start lg:py-14">
           <div className="space-y-8">
-            <div className="inline-flex items-center gap-3 rounded-full border border-emerald-200/50 bg-white/75 px-4 py-2 text-sm text-emerald-950 shadow-sm backdrop-blur">
+            <div className="inline-flex max-w-full items-center gap-3 rounded-full border border-emerald-200/50 bg-white/75 px-4 py-2 text-sm text-emerald-950 shadow-sm backdrop-blur">
               <span className="h-2.5 w-2.5 rounded-full bg-emerald-500" />
-              Frontend-only concept for a scholarship discovery workspace
+              <span className="min-w-0">
+                Frontend-only concept for a scholarship discovery workspace
+              </span>
             </div>
 
             <div className="max-w-3xl space-y-5">
               <p className="text-sm font-semibold uppercase tracking-[0.4em] text-emerald-900/75">
                 Responsive scholarship workspace
               </p>
-              <h2 className="text-4xl font-semibold tracking-tight text-white sm:text-5xl lg:text-6xl">
-                Finf scholarshiops, track deadlines, and manage applications all in one place.
+              <h2 className="max-w-4xl pb-3 text-[2.65rem] font-semibold leading-[1.04] tracking-tight text-white sm:text-5xl lg:text-6xl">
+                Find scholarships, track deadlines, and manage applications all
+                in one place.
               </h2>
-              <p className="max-w-2xl text-lg leading-8 text-emerald-950/80">
+              <p className="max-w-2xl text-base leading-7 text-emerald-950/80 sm:text-lg sm:leading-8">
                 This version keeps the landing page, dashboard mood, and card
                 styling while showing how login, sign up, OTP verification, and
                 password reset can look on the homepage.
@@ -306,19 +309,19 @@ export default function HomeClient() {
 
             <section
               id="preview"
-              className="rounded-4xl bg-white/88 p-6 shadow-xl shadow-emerald-950/10 backdrop-blur"
+              className="rounded-4xl bg-white/88 p-4 shadow-xl shadow-emerald-950/10 backdrop-blur sm:p-6"
             >
               <div className="flex flex-col gap-6 lg:flex-row lg:items-start lg:justify-between">
                 <div>
                   <p className="text-sm font-semibold uppercase tracking-[0.3em] text-emerald-700">
                     Dashboard concept
                   </p>
-                  <h3 className="mt-3 text-3xl font-semibold tracking-tight text-emerald-950">
+                  <h3 className="mt-3 text-2xl font-semibold tracking-tight text-emerald-950 sm:text-3xl">
                     A focused workspace for scholarship search, planning, and
                     application momentum.
                   </h3>
                 </div>
-                <div className="grid min-w-56 gap-3 rounded-3xl bg-[#11382e] p-5 text-white">
+                <div className="grid w-full gap-3 rounded-3xl bg-[#11382e] p-5 text-white sm:max-w-72">
                   <p className="text-sm text-emerald-100/80">Saved scholarships</p>
                   <p className="text-4xl font-semibold">18</p>
                   <p className="text-sm text-emerald-100/80">
@@ -377,21 +380,21 @@ export default function HomeClient() {
             </section>
           </div>
 
-          <aside className="rounded-4xl border border-white/15 bg-[#fffaf0] p-5 shadow-2xl shadow-emerald-950/20">
+          <aside className="rounded-4xl border border-white/15 bg-[#fffaf0] p-4 shadow-2xl shadow-emerald-950/20 sm:p-5">
             <div className="rounded-3xl bg-[#11382e] p-5 text-white">
-              <div className="flex items-start justify-between gap-4">
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                 <div>
                   <p className="text-sm text-emerald-100/80">Secure access</p>
-                  <p className="mt-2 text-2xl font-semibold sm:text-3xl">
+                  <p className="mt-2 text-2xl font-semibold leading-tight sm:text-3xl">
                     Student account access
                   </p>
                 </div>
-                <span className="rounded-full bg-white/10 px-3 py-1 text-xs uppercase tracking-[0.2em] text-emerald-100">
+                <span className="inline-flex w-fit rounded-full bg-white/10 px-3 py-1 text-xs uppercase tracking-[0.2em] text-emerald-100">
                   Auth UI
                 </span>
               </div>
 
-              <div className="mt-6 flex flex-wrap gap-2">
+              <div className="mt-6 grid grid-cols-1 gap-2 sm:grid-cols-2">
                 {([
                   ['login', 'Log in'],
                   ['signup', 'Sign up'],
@@ -449,7 +452,7 @@ export default function HomeClient() {
                   </div>
                   <button
                     type="submit"
-                    className="rounded-full bg-[#f8f1de] px-6 py-3 text-sm font-semibold text-emerald-950 transition hover:bg-white"
+                    className="w-full rounded-full bg-[#f8f1de] px-6 py-3 text-sm font-semibold text-emerald-950 transition hover:bg-white sm:w-auto"
                   >
                     Log in
                   </button>
@@ -488,7 +491,7 @@ export default function HomeClient() {
                   </div>
                   <button
                     type="submit"
-                    className="rounded-full bg-[#f8f1de] px-6 py-3 text-sm font-semibold text-emerald-950 transition hover:bg-white"
+                    className="w-full rounded-full bg-[#f8f1de] px-6 py-3 text-sm font-semibold text-emerald-950 transition hover:bg-white sm:w-auto"
                   >
                     Create account
                   </button>
@@ -497,7 +500,7 @@ export default function HomeClient() {
 
               {mode === 'verify' ? (
                 <form className="mt-6 grid gap-4" onSubmit={handleVerifySubmit}>
-                  <div className="flex items-center justify-between">
+                  <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
                     <p className="text-sm font-medium text-emerald-100/80">
                       Verify your email with OTP
                     </p>
@@ -524,7 +527,7 @@ export default function HomeClient() {
                   />
                   <button
                     type="submit"
-                    className="rounded-full bg-[#f8f1de] px-6 py-3 text-sm font-semibold text-emerald-950 transition hover:bg-white"
+                    className="w-full rounded-full bg-[#f8f1de] px-6 py-3 text-sm font-semibold text-emerald-950 transition hover:bg-white sm:w-auto"
                   >
                     Verify email
                   </button>
@@ -533,7 +536,7 @@ export default function HomeClient() {
 
               {mode === 'forgot' ? (
                 <form className="mt-6 grid gap-4" onSubmit={handleForgotSubmit}>
-                  <div className="flex items-center justify-between">
+                  <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
                     <p className="text-sm font-medium text-emerald-100/80">
                       Reset password with OTP
                     </p>
@@ -558,7 +561,7 @@ export default function HomeClient() {
                   </div>
                   <button
                     type="submit"
-                    className="rounded-full bg-[#f8f1de] px-6 py-3 text-sm font-semibold text-emerald-950 transition hover:bg-white"
+                    className="w-full rounded-full bg-[#f8f1de] px-6 py-3 text-sm font-semibold text-emerald-950 transition hover:bg-white sm:w-auto"
                   >
                     Send OTP
                   </button>
@@ -567,7 +570,7 @@ export default function HomeClient() {
 
               {mode === 'reset' ? (
                 <form className="mt-6 grid gap-4" onSubmit={handleResetSubmit}>
-                  <div className="flex items-center justify-between">
+                  <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
                     <p className="text-sm font-medium text-emerald-100/80">
                       Complete password reset
                     </p>
@@ -609,7 +612,7 @@ export default function HomeClient() {
                   />
                   <button
                     type="submit"
-                    className="rounded-full bg-[#f8f1de] px-6 py-3 text-sm font-semibold text-emerald-950 transition hover:bg-white"
+                    className="w-full rounded-full bg-[#f8f1de] px-6 py-3 text-sm font-semibold text-emerald-950 transition hover:bg-white sm:w-auto"
                   >
                     Reset password
                   </button>
@@ -643,13 +646,13 @@ export default function HomeClient() {
 
         <section
           id="featured"
-          className="grid gap-6 rounded-4xl bg-white/85 p-6 shadow-xl shadow-emerald-950/10 backdrop-blur lg:grid-cols-[0.9fr_1.1fr]"
+          className="grid gap-6 rounded-4xl bg-white/85 p-4 shadow-xl shadow-emerald-950/10 backdrop-blur sm:p-6 lg:grid-cols-[0.9fr_1.1fr]"
         >
           <div className="space-y-4">
             <p className="text-sm font-semibold uppercase tracking-[0.3em] text-emerald-700">
               Featured Scholarships
             </p>
-            <h3 className="text-3xl font-semibold tracking-tight text-emerald-950">
+            <h3 className="text-2xl font-semibold tracking-tight text-emerald-950 sm:text-3xl">
               The homepage still communicates value before any account system is
               added.
             </h3>
