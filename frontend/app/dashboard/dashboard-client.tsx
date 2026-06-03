@@ -3,8 +3,7 @@
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { useEffect, useState } from 'react'
-
-const SESSION_EMAIL_KEY = 'scholarship-platform-user-email'
+import api from '../../lib/api'
 
 const dashboardStats = [
   { label: 'Profile strength', value: '92%' },
@@ -54,36 +53,24 @@ function DashboardStat({
   )
 }
 
-function getDisplayName(email: string) {
-  const localPart = email.split('@')[0] || 'student'
-  return localPart
-    .split(/[._-]+/)
-    .filter(Boolean)
-    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
-    .join(' ')
-}
+type User = { id: string; name: string; email: string }
 
 export default function DashboardClient() {
   const router = useRouter()
-  const [email, setEmail] = useState('')
+  const [user, setUser] = useState<User | null>(null)
 
   useEffect(() => {
-    const savedEmail = window.localStorage.getItem(SESSION_EMAIL_KEY)
-
-    if (!savedEmail) {
-      router.replace('/')
-      return
-    }
-
-    setEmail(savedEmail)
+    api.get('/auth/me')
+      .then(({ data }) => setUser(data.user))
+      .catch(() => router.replace('/'))
   }, [router])
 
-  function handleLogout() {
-    window.localStorage.removeItem(SESSION_EMAIL_KEY)
+  async function handleLogout() {
+    await api.post('/auth/logout', {})
     router.push('/')
   }
 
-  const displayName = getDisplayName(email)
+  if (!user) return null
 
   return (
     <main className="relative isolate overflow-hidden">
@@ -117,7 +104,7 @@ export default function DashboardClient() {
           <div className="space-y-8">
             <div className="inline-flex items-center gap-3 rounded-full border border-emerald-200/50 bg-white/75 px-4 py-2 text-sm text-emerald-950 shadow-sm backdrop-blur">
               <span className="h-2.5 w-2.5 rounded-full bg-emerald-500" />
-              Signed in as {email || 'your registered email'}
+              Signed in as {user.email}
             </div>
 
             <div className="max-w-3xl space-y-5">
@@ -125,7 +112,7 @@ export default function DashboardClient() {
                 Personal dashboard
               </p>
               <h2 className="text-4xl font-semibold tracking-tight text-white sm:text-5xl lg:text-6xl">
-                Welcome back, {displayName || 'Student'}.
+                Welcome back, {user.name}.
               </h2>
               <p className="max-w-2xl text-lg leading-8 text-emerald-950/80">
                 Your scholarship workspace is ready with active matches,
@@ -219,7 +206,7 @@ export default function DashboardClient() {
                 <div>
                   <p className="text-sm text-emerald-100/80">Account</p>
                   <p className="mt-2 text-2xl font-semibold sm:text-3xl">
-                    {displayName || 'Student'} workspace
+                    {user.name}&apos;s workspace
                   </p>
                 </div>
                 <span className="rounded-full bg-white/10 px-3 py-1 text-xs uppercase tracking-[0.2em] text-emerald-100">
@@ -231,7 +218,7 @@ export default function DashboardClient() {
                 <article className="rounded-2xl border border-white/10 bg-white/5 px-4 py-4">
                   <p className="text-sm text-emerald-100/75">Registered email</p>
                   <p className="mt-2 text-base font-medium text-white">
-                    {email || 'student@example.com'}
+                    {user.email}
                   </p>
                 </article>
                 <article className="rounded-2xl border border-white/10 bg-white/5 px-4 py-4">
@@ -246,20 +233,19 @@ export default function DashboardClient() {
             <div className="mt-5 grid gap-4 sm:grid-cols-2 lg:grid-cols-1">
               <article className="rounded-3xl bg-[#f6ead1] p-5 text-emerald-950">
                 <p className="text-sm font-medium text-emerald-900/70">
-                  Dashboard access
+                  Session
                 </p>
                 <p className="mt-2 text-lg font-semibold">
-                  After login, the user is redirected here immediately.
+                  Secured with an httpOnly cookie valid for 7 days.
                 </p>
               </article>
               <article className="rounded-3xl border border-[#eadfcb] bg-white p-5 text-emerald-950">
                 <p className="text-sm font-medium text-emerald-900/70">
-                  Frontend note
+                  Data
                 </p>
                 <p className="mt-2 text-sm leading-6">
-                  This dashboard uses the signed-in email stored in local
-                  storage, so the flow already behaves like a simple frontend
-                  session.
+                  Your name and email are fetched from the database on every
+                  page load via the session cookie.
                 </p>
               </article>
             </div>

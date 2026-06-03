@@ -2,6 +2,7 @@
 
 import { useRouter } from 'next/navigation'
 import { useState } from 'react'
+import api from '../lib/api'
 
 const featuredScholarships = [
   {
@@ -46,7 +47,6 @@ const dashboardMatches = [
 ]
 
 type AuthMode = 'login' | 'signup' | 'verify' | 'forgot' | 'reset'
-const SESSION_EMAIL_KEY = 'scholarship-platform-user-email'
 
 function EyeIcon() {
   return (
@@ -160,6 +160,7 @@ function Field({
 export default function HomeClient() {
   const router = useRouter()
   const [mode, setMode] = useState<AuthMode>('login')
+  const [loading, setLoading] = useState(false)
   const [loginEmail, setLoginEmail] = useState('')
   const [loginPassword, setLoginPassword] = useState('')
   const [signupName, setSignupName] = useState('')
@@ -181,73 +182,123 @@ export default function HomeClient() {
 
   function changeMode(nextMode: AuthMode) {
     setMode(nextMode)
-
-    if (nextMode === 'login') {
-      setStatusMessage('Welcome back. Log in with your registered email and password.')
-    }
-
-    if (nextMode === 'signup') {
-      setStatusMessage('Create your account using your registered email address.')
-    }
-
-    if (nextMode === 'verify') {
-      setStatusMessage('Enter the OTP sent to your email to verify the account.')
-    }
-
-    if (nextMode === 'forgot') {
-      setStatusMessage('Request an OTP to reset your password securely.')
-    }
-
-    if (nextMode === 'reset') {
-      setStatusMessage('Enter the OTP and choose a new password to finish resetting.')
-    }
+    if (nextMode === 'login') setStatusMessage('Welcome back. Log in with your registered email and password.')
+    if (nextMode === 'signup') setStatusMessage('Create your account using your registered email address.')
+    if (nextMode === 'verify') setStatusMessage('Enter the OTP sent to your email to verify the account.')
+    if (nextMode === 'forgot') setStatusMessage('Request an OTP to reset your password securely.')
+    if (nextMode === 'reset') setStatusMessage('Enter the OTP and choose a new password to finish resetting.')
   }
 
-  function handleLoginSubmit(event: React.FormEvent<HTMLFormElement>) {
+  async function handleLoginSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault()
-
     if (!loginEmail.trim() || !loginPassword.trim()) {
       setStatusMessage('Enter your registered email and password to continue.')
       return
     }
-
-    window.localStorage.setItem(
-      SESSION_EMAIL_KEY,
-      loginEmail.trim().toLowerCase()
-    )
-    router.push('/dashboard')
+    setLoading(true)
+    try {
+      await api.post('/auth/login', { email: loginEmail.trim(), password: loginPassword })
+      router.push('/dashboard')
+    } catch (err: unknown) {
+      const error = (err as { response?: { data?: { error?: string; needsVerification?: boolean } } }).response?.data
+      if (error?.needsVerification) {
+        setVerifyEmail(loginEmail.trim())
+        changeMode('verify')
+      } else {
+        setStatusMessage(error?.error || 'Login failed. Please try again.')
+      }
+    } finally {
+      setLoading(false)
+    }
   }
 
-  function handleSignupSubmit(event: React.FormEvent<HTMLFormElement>) {
+  async function handleSignupSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault()
-    setVerifyEmail(signupEmail)
-    setStatusMessage(
-      'Account created in the UI flow. The next step is email verification through OTP.'
-    )
-    setMode('verify')
+    if (!signupName.trim() || !signupEmail.trim() || !signupPassword) {
+      setStatusMessage('Please fill in all fields.')
+      return
+    }
+    setLoading(true)
+    try {
+      await api.post('/auth/register', {
+        name: signupName.trim(),
+        email: signupEmail.trim(),
+        password: signupPassword,
+      })
+      setVerifyEmail(signupEmail.trim())
+      changeMode('verify')
+      setStatusMessage('OTP sent to your email. Enter it below to verify your account.')
+    } catch (err: unknown) {
+      const error = (err as { response?: { data?: { error?: string } } }).response?.data
+      setStatusMessage(error?.error || 'Registration failed. Please try again.')
+    } finally {
+      setLoading(false)
+    }
   }
 
-  function handleVerifySubmit(event: React.FormEvent<HTMLFormElement>) {
+  async function handleVerifySubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault()
-    setStatusMessage(
-      'Email verified in the frontend preview. You can now connect this step to your OTP API.'
-    )
+    if (!verifyEmail.trim() || !verifyOtp.trim()) {
+      setStatusMessage('Enter your email and the OTP.')
+      return
+    }
+    setLoading(true)
+    try {
+      await api.post('/auth/verify-otp', { email: verifyEmail.trim(), otp: verifyOtp.trim() })
+      router.push('/dashboard')
+    } catch (err: unknown) {
+      const error = (err as { response?: { data?: { error?: string } } }).response?.data
+      setStatusMessage(error?.error || 'Verification failed. Please try again.')
+    } finally {
+      setLoading(false)
+    }
   }
 
-  function handleForgotSubmit(event: React.FormEvent<HTMLFormElement>) {
+  async function handleForgotSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault()
-    setVerifyEmail(forgotEmail)
-    setStatusMessage(
-      'Password reset OTP sent in the UI flow. Enter the OTP and set a new password.'
-    )
-    setMode('reset')
+    if (!forgotEmail.trim()) {
+      setStatusMessage('Enter your registered email.')
+      return
+    }
+    setLoading(true)
+    try {
+      await api.post('/auth/forgot-password', { email: forgotEmail.trim() })
+      setVerifyEmail(forgotEmail.trim())
+      changeMode('reset')
+      setStatusMessage('If that email is registered, an OTP has been sent.')
+    } catch (err: unknown) {
+      const error = (err as { response?: { data?: { error?: string } } }).response?.data
+      setStatusMessage(error?.error || 'Failed. Please try again.')
+    } finally {
+      setLoading(false)
+    }
   }
 
-  function handleResetSubmit(event: React.FormEvent<HTMLFormElement>) {
+  async function handleResetSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault()
-    setStatusMessage(
-      'Password reset completed in the frontend preview. This is ready for backend wiring.'
-    )
+    if (!resetOtp.trim() || !newPassword || !confirmPassword) {
+      setStatusMessage('Please fill in all fields.')
+      return
+    }
+    if (newPassword !== confirmPassword) {
+      setStatusMessage('Passwords do not match.')
+      return
+    }
+    setLoading(true)
+    try {
+      await api.post('/auth/reset-password', {
+        email: verifyEmail.trim(),
+        otp: resetOtp.trim(),
+        newPassword,
+      })
+      changeMode('login')
+      setStatusMessage('Password reset successful. You can now log in.')
+    } catch (err: unknown) {
+      const error = (err as { response?: { data?: { error?: string } } }).response?.data
+      setStatusMessage(error?.error || 'Reset failed. Please try again.')
+    } finally {
+      setLoading(false)
+    }
   }
 
   return (
@@ -282,7 +333,7 @@ export default function HomeClient() {
             <div className="inline-flex max-w-full items-center gap-3 rounded-full border border-emerald-200/50 bg-white/75 px-4 py-2 text-sm text-emerald-950 shadow-sm backdrop-blur">
               <span className="h-2.5 w-2.5 rounded-full bg-emerald-500" />
               <span className="min-w-0">
-                Frontend-only concept for a scholarship discovery workspace
+                Scholarship discovery and application workspace
               </span>
             </div>
 
@@ -295,9 +346,8 @@ export default function HomeClient() {
                 in one place.
               </h2>
               <p className="max-w-2xl text-base leading-7 text-emerald-950/80 sm:text-lg sm:leading-8">
-                This version keeps the landing page, dashboard mood, and card
-                styling while showing how login, sign up, OTP verification, and
-                password reset can look on the homepage.
+                Create an account, verify your email, and get matched with
+                scholarships tailored to your profile.
               </p>
             </div>
 
@@ -390,7 +440,7 @@ export default function HomeClient() {
                   </p>
                 </div>
                 <span className="inline-flex w-fit rounded-full bg-white/10 px-3 py-1 text-xs uppercase tracking-[0.2em] text-emerald-100">
-                  Auth UI
+                  Auth
                 </span>
               </div>
 
@@ -452,9 +502,10 @@ export default function HomeClient() {
                   </div>
                   <button
                     type="submit"
-                    className="w-full rounded-full bg-[#f8f1de] px-6 py-3 text-sm font-semibold text-emerald-950 transition hover:bg-white sm:w-auto"
+                    disabled={loading}
+                    className="w-full rounded-full bg-[#f8f1de] px-6 py-3 text-sm font-semibold text-emerald-950 transition hover:bg-white disabled:opacity-60 sm:w-auto"
                   >
-                    Log in
+                    {loading ? 'Logging in…' : 'Log in'}
                   </button>
                 </form>
               ) : null}
@@ -485,15 +536,12 @@ export default function HomeClient() {
                       setShowSignupPassword((current) => !current)
                     }
                   />
-                  <div className="rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-emerald-100/85">
-                    Use the registered email you want to verify through OTP
-                    before accessing the dashboard.
-                  </div>
                   <button
                     type="submit"
-                    className="w-full rounded-full bg-[#f8f1de] px-6 py-3 text-sm font-semibold text-emerald-950 transition hover:bg-white sm:w-auto"
+                    disabled={loading}
+                    className="w-full rounded-full bg-[#f8f1de] px-6 py-3 text-sm font-semibold text-emerald-950 transition hover:bg-white disabled:opacity-60 sm:w-auto"
                   >
-                    Create account
+                    {loading ? 'Creating account…' : 'Create account'}
                   </button>
                 </form>
               ) : null}
@@ -527,9 +575,10 @@ export default function HomeClient() {
                   />
                   <button
                     type="submit"
-                    className="w-full rounded-full bg-[#f8f1de] px-6 py-3 text-sm font-semibold text-emerald-950 transition hover:bg-white sm:w-auto"
+                    disabled={loading}
+                    className="w-full rounded-full bg-[#f8f1de] px-6 py-3 text-sm font-semibold text-emerald-950 transition hover:bg-white disabled:opacity-60 sm:w-auto"
                   >
-                    Verify email
+                    {loading ? 'Verifying…' : 'Verify email'}
                   </button>
                 </form>
               ) : null}
@@ -555,15 +604,12 @@ export default function HomeClient() {
                     value={forgotEmail}
                     onChange={setForgotEmail}
                   />
-                  <div className="rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-emerald-100/85">
-                    We will send a password reset OTP to the registered email
-                    address.
-                  </div>
                   <button
                     type="submit"
-                    className="w-full rounded-full bg-[#f8f1de] px-6 py-3 text-sm font-semibold text-emerald-950 transition hover:bg-white sm:w-auto"
+                    disabled={loading}
+                    className="w-full rounded-full bg-[#f8f1de] px-6 py-3 text-sm font-semibold text-emerald-950 transition hover:bg-white disabled:opacity-60 sm:w-auto"
                   >
-                    Send OTP
+                    {loading ? 'Sending OTP…' : 'Send OTP'}
                   </button>
                 </form>
               ) : null}
@@ -612,9 +658,10 @@ export default function HomeClient() {
                   />
                   <button
                     type="submit"
-                    className="w-full rounded-full bg-[#f8f1de] px-6 py-3 text-sm font-semibold text-emerald-950 transition hover:bg-white sm:w-auto"
+                    disabled={loading}
+                    className="w-full rounded-full bg-[#f8f1de] px-6 py-3 text-sm font-semibold text-emerald-950 transition hover:bg-white disabled:opacity-60 sm:w-auto"
                   >
-                    Reset password
+                    {loading ? 'Resetting…' : 'Reset password'}
                   </button>
                 </form>
               ) : null}
@@ -623,21 +670,20 @@ export default function HomeClient() {
             <div className="mt-5 grid gap-4 sm:grid-cols-2 lg:grid-cols-1">
               <article className="rounded-3xl bg-[#f6ead1] p-5 text-emerald-950">
                 <p className="text-sm font-medium text-emerald-900/70">
-                  Included states
+                  Included flows
                 </p>
                 <p className="mt-2 text-lg font-semibold">
-                  Login, sign up, email verification OTP, forgot password OTP,
-                  and reset password.
+                  Login, sign up, email OTP verification, forgot password, and
+                  password reset.
                 </p>
               </article>
               <article className="rounded-3xl border border-[#eadfcb] bg-white p-5 text-emerald-950">
                 <p className="text-sm font-medium text-emerald-900/70">
-                  Implementation note
+                  Session
                 </p>
                 <p className="mt-2 text-sm leading-6">
-                  This is a frontend interaction mock, so each form already has
-                  its own state and transitions, ready for backend connection
-                  later.
+                  After login or verification, a secure httpOnly cookie keeps
+                  your session alive for 7 days.
                 </p>
               </article>
             </div>
@@ -653,13 +699,11 @@ export default function HomeClient() {
               Featured Scholarships
             </p>
             <h3 className="text-2xl font-semibold tracking-tight text-emerald-950 sm:text-3xl">
-              The homepage still communicates value before any account system is
-              added.
+              Browse open awards before signing up.
             </h3>
             <p className="text-base leading-7 text-slate-600">
-              Students can browse the tone of the platform, understand the
-              product direction, and preview the interface across desktop and
-              mobile layouts.
+              Students can explore the platform, understand the product
+              direction, and preview the interface across desktop and mobile.
             </p>
           </div>
 
