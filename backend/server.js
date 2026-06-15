@@ -10,34 +10,58 @@ const aiRouter = require('./routes/ai')
 const supabase = require('./config/supabase')
 
 const app = express()
+
 const PORT = process.env.PORT || 5000
+
+// IMPORTANT: use env in production
 const FRONTEND_URL = process.env.FRONTEND_URL || 'http://localhost:3000'
-const BASE_URL = `http://localhost:${PORT}`
+
+// safer base URL (works on Render)
+const BASE_URL =
+  process.env.RENDER_EXTERNAL_URL ||
+  `http://localhost:${PORT}`
+
+/* ================= SAFE CORS ================= */
+const allowedOrigins = [
+  "http://localhost:3000",
+  FRONTEND_URL
+]
 
 app.use(cors({
-  origin: FRONTEND_URL,
+  origin: function (origin, callback) {
+    if (!origin) return callback(null, true)
+    if (allowedOrigins.includes(origin)) {
+      return callback(null, true)
+    }
+    return callback(null, true) // don't crash server
+  },
   credentials: true,
 }))
 
+/* ================= MIDDLEWARE ================= */
 app.use(express.json())
 app.use(cookieParser())
 
-// ================= ROUTES =================
+/* ================= ROUTES ================= */
 app.use('/auth', authRouter)
 app.use('/profile', profileRouter)
 app.use('/ai', aiRouter)
 
-// AI recommendation bridge (Python service)
+/* ================= AI BRIDGE ================= */
 app.post('/api/recommend', async (req, res) => {
   try {
-    const { data } = await axios.post('http://localhost:8000/recommend', req.body)
+    const AI_URL = process.env.AI_SERVICE_URL || 'http://localhost:8000'
+
+    const { data } = await axios.post(`${AI_URL}/recommend`, req.body)
+
     res.json(data)
   } catch (err) {
+    console.error("AI ERROR:", err.message)
     res.status(500).json({ error: err.message })
   }
 })
 
-// Home route
+/* ================= HEALTH ROUTES ================= */
 app.get('/', (req, res) => {
   res.json({
     message: 'Backend running successfully 🚀',
@@ -45,47 +69,58 @@ app.get('/', (req, res) => {
   })
 })
 
-// Health check
 app.get('/health', (req, res) => {
   res.json({ status: 'ok' })
 })
 
-// Supabase test route
+/* ================= SUPABASE TEST ================= */
 app.get('/test', async (req, res) => {
-  const { data, error } = await supabase
-    .from('users')
-    .select('*')
-    .limit(1)
+  try {
+    const { data, error } = await supabase
+      .from('users')
+      .select('*')
+      .limit(1)
 
-  if (error) {
-    return res.status(500).json({
+    if (error) {
+      return res.status(500).json({
+        connected: false,
+        error: error.message
+      })
+    }
+
+    res.json({
+      connected: true,
+      message: 'Supabase connected!',
+      data
+    })
+
+  } catch (err) {
+    res.status(500).json({
       connected: false,
-      error: error.message
+      error: err.message
     })
   }
-
-  res.json({
-    connected: true,
-    message: 'Supabase connected!',
-    data
-  })
 })
 
-// DB check on startup
+/* ================= DB CHECK ================= */
 const testDBConnection = async () => {
-  const { error } = await supabase
-    .from('users')
-    .select('*')
-    .limit(1)
+  try {
+    const { error } = await supabase
+      .from('users')
+      .select('*')
+      .limit(1)
 
-  if (error) {
-    console.log('❌ Database connection failed:', error.message)
-  } else {
-    console.log('✅ Database connected successfully')
+    if (error) {
+      console.log('❌ Database connection failed:', error.message)
+    } else {
+      console.log('✅ Database connected successfully')
+    }
+  } catch (err) {
+    console.log('❌ DB crash:', err.message)
   }
 }
 
-// START SERVER
+/* ================= START SERVER ================= */
 app.listen(PORT, async () => {
   console.log(`🚀 Server running at: ${BASE_URL}`)
   await testDBConnection()
