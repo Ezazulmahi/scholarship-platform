@@ -1,12 +1,15 @@
-from langchain_openai import ChatOpenAI
+import os
+from langchain_groq import ChatGroq
 from langchain_core.prompts import ChatPromptTemplate
 from langchain_core.output_parsers import StrOutputParser
 from rag.vector_store import search_scholarships
 
-
 def build_sop_chain():
-    llm = ChatOpenAI(model="gpt-4o", temperature=0.7)
-
+    llm = ChatGroq(
+        model="llama-3.3-70b-versatile",
+        temperature=0.7,
+        api_key=os.environ.get("GROQ_API_KEY"),
+    )
     prompt = ChatPromptTemplate.from_messages([
         (
             "system",
@@ -19,7 +22,7 @@ You have retrieved the following scholarship context from our knowledge base:
 Guidelines:
 - Write in first person, naturally and authentically
 - Match the tone requested: {tone}
-- Target approximately {target_words} words
+- Target approximately {target_words} words — this is strict, do not write significantly less
 - Ground every claim in the student's actual profile — never invent achievements
 - Weave in how this specific scholarship aligns with the student's goals
 - Begin with a compelling hook — not "I am applying for..."
@@ -49,21 +52,16 @@ Target length: {target_words} words
 Write the complete SOP now:""",
         ),
     ])
-
     return prompt | llm | StrOutputParser()
 
-
 _chain = None
-
 
 def generate_sop(scholarship, motivation, tone, target_words, profile):
     global _chain
     if _chain is None:
         _chain = build_sop_chain()
-
     docs = search_scholarships(f"{scholarship} {profile.get('field', '')}", k=3)
     scholarship_context = "\n\n---\n\n".join(d.page_content for d in docs)
-
     return _chain.invoke({
         "scholarship_context": scholarship_context,
         "scholarship": scholarship,

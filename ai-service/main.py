@@ -3,19 +3,26 @@ ScholarPath AI Service
 FastAPI + LangChain + RAG + Claude API
 
 Endpoints:
-  POST /sop/generate         — Generate a personalised SOP
-  POST /scholarships/match   — Match + rank scholarships against a profile
-  GET  /scholarships/all     — Return all scholarships in the knowledge base
-  POST /costing/estimate     — Yearly cost breakdown for a country
-  GET  /costing/summary      — All countries summary (for bar chart)
-  POST /advisor/chat         — Conversational AI advisor
-  POST /dashboard/insights   — AI-generated dashboard stats for a profile
+  POST /sop/generate              — Generate a personalised SOP
+  POST /scholarships/match        — Match + rank scholarships against a profile
+  GET  /scholarships/all          — Return all scholarships in the knowledge base
+  POST /advisor/chat              — Conversational AI advisor
+  POST /dashboard/insights        — AI-generated dashboard stats for a profile
+  GET  /apply/countries           — List of supported countries
+  POST /apply/guide               — Step-by-step application guide for a country
+
+  GET  /costing/countries         — List of supported countries for costing
+  GET  /costing/summary           — All countries cost summary (for bar chart)
+  POST /costing/universities      — AI: universities in a country
+  POST /costing/subjects          — AI: English-taught programmes at a university
+  POST /costing/estimate          — Full yearly cost breakdown for a programme
 """
 
 import os
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
+from typing import Optional
 from dotenv import load_dotenv
 
 load_dotenv()
@@ -59,12 +66,6 @@ class SopRequest(BaseModel):
     profile: ProfileModel = ProfileModel()
 
 
-class CostingRequest(BaseModel):
-    country: str
-    scholarship_discount: float = 0
-    profile: ProfileModel = ProfileModel()
-
-
 class AdvisorRequest(BaseModel):
     message: str
     profile: ProfileModel = ProfileModel()
@@ -75,7 +76,34 @@ class DashboardRequest(BaseModel):
     profile: ProfileModel = ProfileModel()
 
 
-# ── Routes ────────────────────────────────────────────────────────────────────
+class ApplyGuideRequest(BaseModel):
+    country: str
+    profile: ProfileModel = ProfileModel()
+
+
+# ── Costing models ────────────────────────────────────────────────────────────
+
+class UniversitiesRequest(BaseModel):
+    country: str
+
+
+class SubjectsRequest(BaseModel):
+    country: str
+    university_id: str
+    university_name: str
+
+
+class EstimateRequest(BaseModel):
+    country: str
+    university_name: str
+    programme_title: str
+    tuition_eur_per_year: int
+    university_website: Optional[str] = ""
+    programme_url: Optional[str] = ""
+    profile: Optional[dict] = {}
+
+
+# ── Core routes ───────────────────────────────────────────────────────────────
 
 @app.get("/")
 def root():
@@ -86,6 +114,8 @@ def root():
 def health():
     return {"status": "ok"}
 
+
+# ── SOP ───────────────────────────────────────────────────────────────────────
 
 @app.post("/sop/generate")
 def generate_sop(req: SopRequest):
@@ -107,6 +137,8 @@ def generate_sop(req: SopRequest):
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
+
+# ── Scholarships ──────────────────────────────────────────────────────────────
 
 @app.post("/scholarships/match")
 def match_scholarships(profile: ProfileModel):
@@ -132,33 +164,7 @@ def all_scholarships():
     return {"scholarships": SCHOLARSHIP_DOCS}
 
 
-@app.post("/costing/estimate")
-def costing_estimate(req: CostingRequest):
-    from chains.costing_chain import get_costing_breakdown, get_costing_advice
-
-    result = get_costing_breakdown(
-        country=req.country,
-        scholarship_discount=req.scholarship_discount,
-        profile=req.profile.model_dump(),
-    )
-
-    if "error" in result:
-        raise HTTPException(status_code=404, detail=result["error"])
-
-    try:
-        tip = get_costing_advice(req.country, req.profile.model_dump())
-        result["ai_tip"] = tip
-    except Exception:
-        result["ai_tip"] = ""
-
-    return result
-
-
-@app.get("/costing/summary")
-def costing_summary():
-    from chains.costing_chain import get_all_countries_summary
-    return {"countries": get_all_countries_summary()}
-
+# ── Advisor ───────────────────────────────────────────────────────────────────
 
 @app.post("/advisor/chat")
 def advisor_chat(req: AdvisorRequest):
@@ -184,3 +190,75 @@ def dashboard_insights(req: DashboardRequest):
         return insights
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+
+
+# ── Apply by country ──────────────────────────────────────────────────────────
+
+@app.get("/apply/countries")
+def apply_countries():
+    from chains.apply_chain import get_available_countries
+    return {"countries": get_available_countries()}
+
+
+@app.post("/apply/guide")
+def apply_guide(req: ApplyGuideRequest):
+    from chains.apply_chain import get_apply_guide
+
+    result = get_apply_guide(
+        country=req.country,
+        profile=req.profile.model_dump(),
+    )
+
+    if "error" in result:
+        raise HTTPException(status_code=404, detail=result["error"])
+
+    return result
+
+
+# ── Costing (new 4-step flow) ─────────────────────────────────────────────────
+
+@app.get("/costing/countries")
+def costing_countries():
+    from chains.costing_chain import get_countries
+    return get_countries()
+
+
+@app.get("/costing/summary")
+def costing_summary():
+    from chains.costing_chain import get_countries_summary
+    return get_countries_summary()
+
+
+@app.post("/costing/universities")
+def costing_universities(req: UniversitiesRequest):
+    from chains.costing_chain import get_universities
+
+    result = get_universities(req.country)
+    if not result.get("universities"):
+        raise HTTPException(status_code=404, detail=f"No universities found for {req.country}")
+    return result
+
+
+@app.post("/costing/subjects")
+def costing_subjects(req: SubjectsRequest):
+    from chains.costing_chain import get_subjects
+
+    result = get_subjects(req.country, req.university_id, req.university_name)
+    if not result.get("programmes"):
+        raise HTTPException(status_code=404, detail=f"No programmes found for {req.university_name}")
+    return result
+
+
+@app.post("/costing/estimate")
+def costing_estimate(req: EstimateRequest):
+    from chains.costing_chain import get_programme_costing
+
+    return get_programme_costing(
+        country=req.country,
+        university_name=req.university_name,
+        programme_title=req.programme_title,
+        tuition_eur_per_year=req.tuition_eur_per_year,
+        profile=req.profile or {},
+        university_website=req.university_website or "",
+        programme_url=req.programme_url or "",
+    )

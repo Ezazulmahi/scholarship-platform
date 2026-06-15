@@ -23,6 +23,7 @@ export default function SopClient() {
   const [draft, setDraft] = useState('')
   const [wordCount, setWordCount] = useState(0)
   const [copied, setCopied] = useState(false)
+  const [error, setError] = useState('')
 
   useEffect(() => {
     api
@@ -36,12 +37,15 @@ export default function SopClient() {
   async function generate() {
     setGenerating(true)
     setDraft('')
+    setError('')
     try {
+      const target_words = parseInt(length)
       const { data } = await api.post('/ai/sop/generate', {
         scholarship,
         motivation,
         tone,
         length,
+        target_words,
         profile: {
           name: user!.name,
           university: 'BRAC University',
@@ -54,11 +58,14 @@ export default function SopClient() {
       setDraft(data.sop || data.text || '')
       const words = (data.sop || data.text || '').split(/\s+/).filter(Boolean).length
       setWordCount(words)
-    } catch {
-      setDraft(
-        `Dear Admissions Committee,\n\nMy fascination with machine learning began not in a lecture hall, but while building a Bangla text tool and discovering how little the field serves low-resource languages...\n\nAt BRAC University, maintaining a 3.81 CGPA while publishing two papers taught me to pair rigour with curiosity. The ${scholarship.split('—')[0].trim()}'s emphasis on applied ML aligns precisely with my research on efficient models for underrepresented languages.\n\nI am confident that this programme will provide the environment and mentorship needed to advance this work into meaningful, deployable solutions.\n\nSincerely,\n${user!.name}`
-      )
-      setWordCount(150)
+    } catch (err: any) {
+      console.error('SOP generation error:', err)
+      const message =
+        err?.response?.data?.error ||
+        err?.response?.data?.detail ||
+        err?.message ||
+        'Something went wrong'
+      setError(message)
     } finally {
       setGenerating(false)
     }
@@ -84,9 +91,8 @@ export default function SopClient() {
             Statement of Purpose generator.
           </h1>
           <p className="text-white/70 text-base max-w-xl leading-relaxed">
-            Pulls from your profile + the specific scholarship&apos;s requirements to
-            draft a tailored SOP. Edit tone, length, and emphasis — regenerate
-            any paragraph.
+            Pulls from your profile + the specific scholarship&apos;s requirements to draft a
+            tailored SOP. Edit tone, length, and emphasis — regenerate any paragraph.
           </p>
         </div>
       </div>
@@ -181,6 +187,12 @@ export default function SopClient() {
                 '✦ Generate SOP'
               )}
             </button>
+
+            {error && (
+              <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+                {error}
+              </div>
+            )}
 
             <p className="text-xs text-emerald-900/50">
               Auto-filled from your profile: CGPA 3.81, IELTS 7.5, BRAC University, ML focus.

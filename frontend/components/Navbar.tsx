@@ -1,5 +1,4 @@
 'use client'
-
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import api from '../lib/api'
@@ -46,12 +45,12 @@ export default function Navbar({ activePage, userName }: NavbarProps) {
     >
       <Link href="/dashboard" className="flex items-center gap-2.5 shrink-0">
         <span
-          className="h-8 w-8 rounded-lg flex items-center justify-center text-white font-bold text-sm"
+          className="h-8 w-8 rounded-lg flex items-center justify-center font-bold text-sm"
           style={{ backgroundColor: '#3ecb78', color: '#0f2a1c' }}
         >
           S
         </span>
-        <span className="text-white font-semibold text-[15px] tracking-tight">
+        <span className="font-semibold text-[15px] tracking-tight" style={{ color: '#ffffff' }}>
           ScholarPath
         </span>
       </Link>
@@ -61,16 +60,24 @@ export default function Navbar({ activePage, userName }: NavbarProps) {
           <Link
             key={item.key}
             href={item.href}
-            className={`px-4 py-2 rounded-full text-sm font-medium transition-colors whitespace-nowrap ${
-              activePage === item.key
-                ? 'font-semibold text-emerald-950'
-                : 'text-white/75 hover:text-white hover:bg-white/8'
-            }`}
+            className="px-4 py-2 rounded-full text-sm font-medium transition-colors whitespace-nowrap"
             style={
               activePage === item.key
-                ? { backgroundColor: '#3ecb78', color: '#0f2a1c' }
-                : {}
+                ? { backgroundColor: '#3ecb78', color: '#0f2a1c', fontWeight: 600 }
+                : { color: 'rgba(255,255,255,0.85)' }
             }
+            onMouseEnter={(e) => {
+              if (activePage !== item.key) {
+                (e.currentTarget as HTMLAnchorElement).style.color = '#ffffff'
+                ;(e.currentTarget as HTMLAnchorElement).style.backgroundColor = 'rgba(255,255,255,0.10)'
+              }
+            }}
+            onMouseLeave={(e) => {
+              if (activePage !== item.key) {
+                (e.currentTarget as HTMLAnchorElement).style.color = 'rgba(255,255,255,0.85)'
+                ;(e.currentTarget as HTMLAnchorElement).style.backgroundColor = 'transparent'
+              }
+            }}
           >
             {item.label}
           </Link>
@@ -87,7 +94,14 @@ export default function Navbar({ activePage, userName }: NavbarProps) {
         <button
           type="button"
           onClick={handleLogout}
-          className="px-4 py-2 rounded-full border border-white/30 text-white text-sm font-medium hover:bg-white/10 transition-colors whitespace-nowrap"
+          className="px-4 py-2 rounded-full text-sm font-medium transition-colors whitespace-nowrap"
+          style={{ border: '1px solid rgba(255,255,255,0.30)', color: '#ffffff' }}
+          onMouseEnter={(e) => {
+            (e.currentTarget as HTMLButtonElement).style.backgroundColor = 'rgba(255,255,255,0.10)'
+          }}
+          onMouseLeave={(e) => {
+            (e.currentTarget as HTMLButtonElement).style.backgroundColor = 'transparent'
+          }}
         >
           Log out
         </button>

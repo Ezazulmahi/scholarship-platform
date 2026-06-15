@@ -1,13 +1,11 @@
 import os
 from langchain_community.vectorstores import Chroma
-from langchain_openai import OpenAIEmbeddings
+from langchain_huggingface import HuggingFaceEmbeddings
 from langchain_core.documents import Document
 from .scholarships_data import SCHOLARSHIP_DOCS
 
 PERSIST_DIR = os.getenv("CHROMA_PERSIST_DIR", "./chroma_db")
-
 _store: Chroma | None = None
-
 
 def _build_documents() -> list[Document]:
     docs = []
@@ -39,13 +37,16 @@ def _build_documents() -> list[Document]:
         )
     return docs
 
-
 def get_store() -> Chroma:
     global _store
     if _store is not None:
         return _store
 
-    embeddings = OpenAIEmbeddings(model="text-embedding-3-small")
+    embeddings = HuggingFaceEmbeddings(
+        model_name="all-MiniLM-L6-v2",
+        model_kwargs={"device": "cpu"},
+        encode_kwargs={"normalize_embeddings": True},
+    )
 
     if os.path.exists(PERSIST_DIR) and os.listdir(PERSIST_DIR):
         _store = Chroma(persist_directory=PERSIST_DIR, embedding_function=embeddings)
@@ -56,9 +57,7 @@ def get_store() -> Chroma:
             embedding=embeddings,
             persist_directory=PERSIST_DIR,
         )
-
     return _store
-
 
 def search_scholarships(query: str, k: int = 4) -> list[Document]:
     return get_store().similarity_search(query, k=k)
