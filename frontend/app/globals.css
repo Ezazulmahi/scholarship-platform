@@ -1,9 +1,14 @@
 @import "tailwindcss";
 
 :root {
-  --background: #f4efe3;
+  --background: #e0dbd0;
   --foreground: #17352e;
-  --surface: #fffaf0;
+  --surface: #f8f4ec;
+  --nav-bg: #173825;
+  --nav-active: #3ecb78;
+  --hero-bg: #173825;
+  --card-bg: #f8f4ec;
+  --dark-card: #11382e;
 }
 
 @theme inline {
@@ -24,15 +29,18 @@ body {
   color: var(--foreground);
   font-family: inherit;
   min-height: 100vh;
-  background-image:
-    radial-gradient(circle at top, rgba(244, 184, 96, 0.2), transparent 30%),
-    linear-gradient(180deg, #f7f1e4 0%, #efe6d2 100%);
 }
 
+/* Home page hero */
 .hero-backdrop {
   background-image:
-    radial-gradient(circle at top, rgba(255, 255, 255, 0.35), transparent 48%),
+    radial-gradient(circle at top, rgba(255, 255, 255, 0.18), transparent 48%),
     linear-gradient(135deg, #0b3b2e, #145c47 45%, #f4b860 100%);
+}
+
+/* Inner page hero (after login) */
+.page-hero {
+  background: linear-gradient(180deg, #173825 0%, #1a3d2c 60%, #e0dbd0 100%);
 }
 
 a {
@@ -41,6 +49,12 @@ a {
 }
 
 ::selection {
-  background: #f4b860;
-  color: #17352e;
+  background: #3ecb78;
+  color: #11382e;
+}
+
+/* Bar chart bars */
+.bar-fill {
+  background: linear-gradient(to top, #11382e, #3ecb78);
+  border-radius: 4px 4px 0 0;
 }
