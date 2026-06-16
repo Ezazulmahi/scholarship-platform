@@ -53,11 +53,12 @@ async function register(req, res) {
     if (error) return res.status(500).json({ error: 'Registration failed' })
   }
 
-  try {
-    await sendOtpEmail(email, otp, 'Verify your Scholarship Platform account')
-  } catch {
-    return res.status(500).json({ error: 'Failed to send OTP. Check EMAIL_USER and EMAIL_PASS in .env' })
-  }
+try {
+  await sendOtpEmail(email, otp, 'Verify your Scholarship Platform account')
+} catch (err) {
+  console.error('sendOtpEmail failed:', err)
+  return res.status(500).json({ error: 'Failed to send OTP. Check EMAIL_USER and EMAIL_PASS in .env' })
+}
 
   res.json({ message: 'OTP sent to your email' })
 }
