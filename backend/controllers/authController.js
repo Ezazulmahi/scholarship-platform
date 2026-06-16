@@ -17,11 +17,15 @@ function generateOtp() {
 
 async function sendOtpEmail(to, otp, subject) {
   const transporter = nodemailer.createTransport({
-    service: 'gmail',
+    host: 'smtp.gmail.com',
+    port: 465,
+    secure: true,
     auth: {
       user: process.env.EMAIL_USER,
       pass: process.env.EMAIL_PASS,
     },
+    connectionTimeout: 10000,
+    greetingTimeout: 10000,
   })
   await transporter.sendMail({
     from: `"Scholarship Platform" <${process.env.EMAIL_USER}>`,
@@ -53,12 +57,12 @@ async function register(req, res) {
     if (error) return res.status(500).json({ error: 'Registration failed' })
   }
 
-try {
-  await sendOtpEmail(email, otp, 'Verify your Scholarship Platform account')
-} catch (err) {
-  console.error('sendOtpEmail failed:', err)
-  return res.status(500).json({ error: 'Failed to send OTP. Check EMAIL_USER and EMAIL_PASS in .env' })
-}
+  try {
+    await sendOtpEmail(email, otp, 'Verify your Scholarship Platform account')
+  } catch (err) {
+    console.error('sendOtpEmail failed:', err.message)
+    return res.status(500).json({ error: 'Failed to send verification email. Please try again later.' })
+  }
 
   res.json({ message: 'OTP sent to your email' })
 }
@@ -126,8 +130,9 @@ async function forgotPassword(req, res) {
     await User.update(user.id, { otp, otp_expires_at: otpExpiresAt })
     try {
       await sendOtpEmail(email, otp, 'Reset your Scholarship Platform password')
-    } catch {
-      return res.status(500).json({ error: 'Failed to send OTP. Check EMAIL_USER and EMAIL_PASS in .env' })
+    } catch (err) {
+      console.error('sendOtpEmail failed:', err.message)
+      return res.status(500).json({ error: 'Failed to send OTP. Please try again later.' })
     }
   }
 
