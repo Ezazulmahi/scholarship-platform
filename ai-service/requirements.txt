@@ -10,3 +10,4 @@ chromadb
 pydantic
 httpx
 langchain-groq
+langchain-huggingface
