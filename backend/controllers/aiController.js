@@ -4,25 +4,43 @@ const AI_SERVICE_URL = process.env.AI_SERVICE_URL || 'http://localhost:8000'
 async function proxyToAI(endpoint, body, res) {
   try {
     const { data } = await axios.post(`${AI_SERVICE_URL}${endpoint}`, body, {
-      timeout: 60000,
+      timeout: 120000, // 2 minutes for cold start
     })
     res.json(data)
   } catch (err) {
     const status = err.response?.status || 500
     const message = err.response?.data?.detail || err.message || 'AI service error'
+    console.error(`AI proxy error [${endpoint}]:`, message)
     res.status(status).json({ error: message })
   }
 }
 
 async function proxyGetToAI(endpoint, res) {
   try {
-    const { data } = await axios.get(`${AI_SERVICE_URL}${endpoint}`, { timeout: 15000 })
+    const { data } = await axios.get(`${AI_SERVICE_URL}${endpoint}`, {
+      timeout: 120000, // 2 minutes for cold start
+    })
     res.json(data)
   } catch (err) {
     const status = err.response?.status || 500
     const message = err.response?.data?.detail || err.message || 'AI service error'
+    console.error(`AI proxy error [${endpoint}]:`, message)
     res.status(status).json({ error: message })
   }
+}
+
+// ── Keepalive ping to prevent cold starts ─────────────────────────────────────
+function startAIKeepalive() {
+  const ping = async () => {
+    try {
+      await axios.get(`${AI_SERVICE_URL}/health`, { timeout: 10000 })
+      console.log('✅ AI service keepalive OK')
+    } catch (err) {
+      console.warn('⚠️  AI service keepalive failed:', err.message)
+    }
+  }
+  ping() // ping immediately on startup
+  setInterval(ping, 10 * 60 * 1000) // then every 10 minutes
 }
 
 // ── Existing ──────────────────────────────────────────────────────────────────
@@ -74,4 +92,5 @@ module.exports = {
   dashboardInsights,
   applyCountries,
   applyGuide,
+  startAIKeepalive,
 }

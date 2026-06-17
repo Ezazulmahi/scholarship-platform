@@ -28,7 +28,9 @@ from dotenv import load_dotenv
 load_dotenv()
 
 app = FastAPI(title="ScholarPath AI Service", version="1.0.0")
-
+@app.get("/health")
+def health():
+    return {"status": "ok"}
 app.add_middleware(
     CORSMiddleware,
     allow_origins=[

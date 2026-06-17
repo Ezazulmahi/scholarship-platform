@@ -127,8 +127,11 @@ const testDBConnection = async () => {
   }
 }
 
+const { startAIKeepalive } = require('./controllers/aiController')  // ← move to top
+
 /* ================= START SERVER ================= */
 app.listen(PORT, async () => {
   console.log(`🚀 Server running at: ${BASE_URL}`)
   await testDBConnection()
+  startAIKeepalive()  // ← call inside listen callback
 })
