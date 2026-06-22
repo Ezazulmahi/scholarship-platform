@@ -1,15 +1,7 @@
 const bcrypt = require('bcryptjs')
 const jwt = require('jsonwebtoken')
-const nodemailer = require('nodemailer')
+const { Resend } = require('resend')
 const User = require('../models/user')
-
-const transporter = nodemailer.createTransport({
-  service: 'gmail',
-  auth: {
-    user: process.env.EMAIL_USER,
-    pass: process.env.EMAIL_PASS,
-  },
-})
 
 const COOKIE_NAME = 'scholarship_session'
 const COOKIE_OPTIONS = {
@@ -24,12 +16,21 @@ function generateOtp() {
 }
 
 async function sendOtpEmail(to, otp, subject) {
-  await transporter.sendMail({
-    from: `"ScholarAid BD" <${process.env.EMAIL_USER}>`,
+  if (!process.env.RESEND_API_KEY) {
+    throw new Error('RESEND_API_KEY is not configured')
+  }
+
+  const resend = new Resend(process.env.RESEND_API_KEY)
+  const { error } = await resend.emails.send({
+    from: process.env.RESEND_FROM || 'ScholarPath <onboarding@resend.dev>',
     to,
     subject,
     text: `Your OTP code is: ${otp}\n\nThis code expires in 10 minutes.`,
   })
+
+  if (error) {
+    throw new Error(error.message)
+  }
 }
 
 async function register(req, res) {
