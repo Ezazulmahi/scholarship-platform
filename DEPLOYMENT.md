@@ -14,7 +14,7 @@ This repository contains a Next.js frontend in `frontend/` and a Node/Express ba
 1. Push the repository to GitHub.
 2. Create a new Vercel project from the repository.
 3. Set the Root Directory to `frontend`.
-4. Set `NEXT_PUBLIC_API_URL` in Vercel to the deployed backend URL.
+4. Set `NEXT_PUBLIC_API_URL` in Vercel to the deployed backend URL, or rely on the built-in Next.js rewrite proxy.
 5. Deploy.
 
 Backend deployment must also provide `RESEND_API_KEY` and `RESEND_FROM` (optional) so OTP emails can be sent reliably.

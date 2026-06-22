@@ -14,14 +14,10 @@ function getApiBaseUrl() {
       return DEFAULT_API_BASE_URL
     }
 
-    throw new Error('NEXT_PUBLIC_API_URL must be set for deployed environments')
+    return ''
   }
 
-  if (process.env.NODE_ENV === 'production') {
-    throw new Error('NEXT_PUBLIC_API_URL must be set for deployed environments')
-  }
-
-  return DEFAULT_API_BASE_URL
+  return process.env.NODE_ENV === 'production' ? '' : DEFAULT_API_BASE_URL
 }
 
 async function request(method, path, body) {
