@@ -28,7 +28,7 @@ export default function SopClient() {
   useEffect(() => {
     api
       .get('/auth/me')
-      .then(({ data }) => setUser(data.user))
+      .then((response: { data: { user: User } }) => setUser(response.data.user))
       .catch(() => router.replace('/'))
   }, [router])
 
@@ -39,7 +39,7 @@ export default function SopClient() {
     setDraft('')
     setError('')
     try {
-      const target_words = parseInt(length)
+      const target_words = Number.parseInt(length, 10)
       const { data } = await api.post('/ai/sop/generate', {
         scholarship,
         motivation,
@@ -58,12 +58,16 @@ export default function SopClient() {
       setDraft(data.sop || data.text || '')
       const words = (data.sop || data.text || '').split(/\s+/).filter(Boolean).length
       setWordCount(words)
-    } catch (err: any) {
-      console.error('SOP generation error:', err)
+    } catch (error: unknown) {
+      console.error('SOP generation error:', error)
+      const apiError = error as {
+        response?: { data?: { error?: string; detail?: string } }
+        message?: string
+      }
       const message =
-        err?.response?.data?.error ||
-        err?.response?.data?.detail ||
-        err?.message ||
+        apiError.response?.data?.error ||
+        apiError.response?.data?.detail ||
+        apiError.message ||
         'Something went wrong'
       setError(message)
     } finally {
@@ -202,7 +206,7 @@ export default function SopClient() {
 
         {/* Draft output */}
         <div
-          className="rounded-2xl p-7 shadow-sm min-h-[500px] flex flex-col"
+          className="rounded-2xl min-h-125 flex flex-col p-7 shadow-sm"
           style={{ backgroundColor: '#f8f4ec' }}
         >
           {draft ? (
