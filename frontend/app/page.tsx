@@ -1,13 +1,13 @@
 'use client'
 
-import axios from 'axios'
+import api from '../lib/api'
 import HomeClient from './home-client'
 
 export default function Home() {
 
   const testConnection = async () => {
     try {
-      const res = await axios.post('http://localhost:5000/api/recommend', {
+      const res = await api.post('/api/recommend', {
         cgpa: 3.5
       })
       alert(JSON.stringify(res.data, null, 2))
