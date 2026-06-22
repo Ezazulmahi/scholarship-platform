@@ -1,6 +1,6 @@
 const bcrypt = require('bcryptjs')
 const jwt = require('jsonwebtoken')
-const { Resend } = require('resend')
+const nodemailer = require('nodemailer')
 const User = require('../models/user')
 
 const COOKIE_NAME = 'scholarship_session'
@@ -15,22 +15,43 @@ function generateOtp() {
   return Math.floor(100000 + Math.random() * 900000).toString()
 }
 
-async function sendOtpEmail(to, otp, subject) {
-  if (!process.env.RESEND_API_KEY) {
-    throw new Error('RESEND_API_KEY is not configured')
+function createTransporter() {
+  // Validate required env vars early so errors are obvious in logs
+  if (!process.env.EMAIL_USER || !process.env.EMAIL_PASS) {
+    throw new Error('EMAIL_USER and EMAIL_PASS environment variables are required')
   }
 
-  const resend = new Resend(process.env.RESEND_API_KEY)
-  const { error } = await resend.emails.send({
-    from: process.env.RESEND_FROM || 'ScholarPath <onboarding@resend.dev>',
+  return nodemailer.createTransport({
+    service: 'gmail',
+    auth: {
+      user: process.env.EMAIL_USER,
+      pass: process.env.EMAIL_PASS, // Use a Gmail App Password, NOT your real password
+    },
+  })
+}
+
+async function sendOtpEmail(to, otp, subject) {
+  const transporter = createTransporter()
+
+  const info = await transporter.sendMail({
+    from: `"ScholarPath" <${process.env.EMAIL_USER}>`,
     to,
     subject,
-    text: `Your OTP code is: ${otp}\n\nThis code expires in 10 minutes.`,
+    text: `Your OTP code is: ${otp}\n\nThis code expires in 10 minutes.\n\nIf you did not request this, please ignore this email.`,
+    html: `
+      <div style="font-family: Arial, sans-serif; max-width: 480px; margin: auto; padding: 32px; border: 1px solid #e5e7eb; border-radius: 8px;">
+        <h2 style="color: #1d4ed8; margin-bottom: 8px;">ScholarPath</h2>
+        <p style="color: #374151;">Your one-time verification code is:</p>
+        <div style="font-size: 36px; font-weight: bold; letter-spacing: 8px; color: #111827; margin: 24px 0;">
+          ${otp}
+        </div>
+        <p style="color: #6b7280; font-size: 14px;">This code expires in <strong>10 minutes</strong>.</p>
+        <p style="color: #6b7280; font-size: 12px; margin-top: 24px;">If you did not request this, you can safely ignore this email.</p>
+      </div>
+    `,
   })
 
-  if (error) {
-    throw new Error(error.message)
-  }
+  console.log('✅ OTP email sent to:', to, '| MessageId:', info.messageId)
 }
 
 async function register(req, res) {
@@ -49,17 +70,30 @@ async function register(req, res) {
   const otpExpiresAt = new Date(Date.now() + 10 * 60 * 1000).toISOString()
 
   if (existing && !existing.is_verified) {
-    await User.update(existing.id, { name: name.trim(), password_hash: passwordHash, otp, otp_expires_at: otpExpiresAt })
+    await User.update(existing.id, {
+      name: name.trim(),
+      password_hash: passwordHash,
+      otp,
+      otp_expires_at: otpExpiresAt,
+    })
   } else {
-    const { error } = await User.create({ name: name.trim(), email, password_hash: passwordHash, otp, otp_expires_at: otpExpiresAt })
+    const { error } = await User.create({
+      name: name.trim(),
+      email,
+      password_hash: passwordHash,
+      otp,
+      otp_expires_at: otpExpiresAt,
+    })
     if (error) return res.status(500).json({ error: 'Registration failed' })
   }
 
   try {
-    await sendOtpEmail(email, otp, 'Verify your Scholarship Platform account')
+    await sendOtpEmail(email, otp, 'Verify your ScholarPath account')
   } catch (err) {
     console.error('sendOtpEmail failed:', err.message)
-    return res.status(500).json({ error: 'Failed to send verification email. Please try again later.' })
+    return res.status(500).json({
+      error: 'Failed to send verification email. Please try again later.',
+    })
   }
 
   res.json({ message: 'OTP sent to your email' })
@@ -87,7 +121,9 @@ async function login(req, res) {
 
   const user = await User.findByEmail(email)
   if (!user) return res.status(401).json({ error: 'Invalid email or password' })
-  if (!user.is_verified) return res.status(403).json({ error: 'Please verify your email first', needsVerification: true })
+  if (!user.is_verified) {
+    return res.status(403).json({ error: 'Please verify your email first', needsVerification: true })
+  }
 
   const valid = await bcrypt.compare(password, user.password_hash)
   if (!valid) return res.status(401).json({ error: 'Invalid email or password' })
@@ -127,7 +163,7 @@ async function forgotPassword(req, res) {
     const otpExpiresAt = new Date(Date.now() + 10 * 60 * 1000).toISOString()
     await User.update(user.id, { otp, otp_expires_at: otpExpiresAt })
     try {
-      await sendOtpEmail(email, otp, 'Reset your Scholarship Platform password')
+      await sendOtpEmail(email, otp, 'Reset your ScholarPath password')
     } catch (err) {
       console.error('sendOtpEmail failed:', err.message)
       return res.status(500).json({ error: 'Failed to send OTP. Please try again later.' })
