@@ -1,6 +1,7 @@
 const bcrypt = require('bcryptjs')
 const jwt = require('jsonwebtoken')
 const nodemailer = require('nodemailer')
+const { Resend } = require('resend')
 const User = require('../models/user')
 
 const COOKIE_NAME = 'scholarship_session'
@@ -17,6 +18,36 @@ function normalizeEmail(email) {
 
 function generateOtp() {
   return Math.floor(100000 + Math.random() * 900000).toString()
+}
+
+function getOtpEmailContent(otp) {
+  return {
+    text: `Your OTP code is: ${otp}\n\nThis code expires in 10 minutes.\n\nIf you did not request this, please ignore this email.`,
+    html: `
+      <div style="font-family: Arial, sans-serif; max-width: 480px; margin: auto; padding: 32px; border: 1px solid #e5e7eb; border-radius: 8px;">
+        <h2 style="color: #1d4ed8; margin-bottom: 8px;">ScholarPath</h2>
+        <p style="color: #374151;">Your one-time verification code is:</p>
+        <div style="font-size: 36px; font-weight: bold; letter-spacing: 8px; color: #111827; margin: 24px 0;">
+          ${otp}
+        </div>
+        <p style="color: #6b7280; font-size: 14px;">This code expires in <strong>10 minutes</strong>.</p>
+        <p style="color: #6b7280; font-size: 12px; margin-top: 24px;">If you did not request this, you can safely ignore this email.</p>
+      </div>
+    `,
+  }
+}
+
+function readResendConfig() {
+  const apiKey = process.env.RESEND_API_KEY
+  if (!apiKey) return null
+
+  return {
+    apiKey,
+    from:
+      process.env.RESEND_FROM ||
+      process.env.EMAIL_FROM ||
+      'ScholarPath <onboarding@resend.dev>',
+  }
 }
 
 function readMailConfig() {
@@ -60,30 +91,82 @@ function createTransporter() {
   })
 }
 
-async function sendOtpEmail(to, otp, subject) {
+async function sendEmailWithResend({ to, subject, text, html }) {
+  const config = readResendConfig()
+  if (!config) {
+    throw new Error('RESEND_API_KEY is not configured')
+  }
+
+  const resend = new Resend(config.apiKey)
+  const { data, error } = await resend.emails.send({
+    from: config.from,
+    to,
+    subject,
+    text,
+    html,
+  })
+
+  if (error) {
+    throw new Error(error.message || JSON.stringify(error))
+  }
+
+  return data?.id || 'resend-accepted'
+}
+
+async function sendEmailWithSmtp({ to, subject, text, html }) {
   const mailConfig = readMailConfig()
   const transporter = createTransporter()
-  const recipient = normalizeEmail(to)
 
   const info = await transporter.sendMail({
     from: mailConfig.from,
-    to: recipient,
+    to,
     subject,
-    text: `Your OTP code is: ${otp}\n\nThis code expires in 10 minutes.\n\nIf you did not request this, please ignore this email.`,
-    html: `
-      <div style="font-family: Arial, sans-serif; max-width: 480px; margin: auto; padding: 32px; border: 1px solid #e5e7eb; border-radius: 8px;">
-        <h2 style="color: #1d4ed8; margin-bottom: 8px;">ScholarPath</h2>
-        <p style="color: #374151;">Your one-time verification code is:</p>
-        <div style="font-size: 36px; font-weight: bold; letter-spacing: 8px; color: #111827; margin: 24px 0;">
-          ${otp}
-        </div>
-        <p style="color: #6b7280; font-size: 14px;">This code expires in <strong>10 minutes</strong>.</p>
-        <p style="color: #6b7280; font-size: 12px; margin-top: 24px;">If you did not request this, you can safely ignore this email.</p>
-      </div>
-    `,
+    text,
+    html,
   })
 
-  console.log('OTP email accepted for:', recipient, '| MessageId:', info.messageId)
+  return info.messageId
+}
+
+async function sendOtpEmail(to, otp, subject) {
+  const recipient = normalizeEmail(to)
+  const content = getOtpEmailContent(otp)
+  const resendConfig = readResendConfig()
+
+  const message = {
+    to: recipient,
+    subject,
+    text: content.text,
+    html: content.html,
+  }
+
+  const provider = resendConfig ? 'resend' : 'smtp'
+  const messageId = resendConfig
+    ? await sendEmailWithResend(message)
+    : await sendEmailWithSmtp(message)
+
+  console.log(`OTP email accepted by ${provider} for:`, recipient, '| MessageId:', messageId)
+}
+
+function mailStatus(req, res) {
+  const resendConfig = readResendConfig()
+  const smtpUser = process.env.EMAIL_USER || process.env.SMTP_USER || process.env.GMAIL_USER
+  const smtpPass = process.env.EMAIL_PASS || process.env.SMTP_PASS || process.env.GMAIL_APP_PASSWORD
+
+  res.json({
+    provider: resendConfig ? 'resend' : 'smtp',
+    resend: {
+      configured: Boolean(resendConfig),
+      from: resendConfig?.from || null,
+    },
+    smtp: {
+      configured: Boolean(smtpUser && smtpPass),
+      userConfigured: Boolean(smtpUser),
+      passwordConfigured: Boolean(smtpPass),
+      host: process.env.SMTP_HOST || 'smtp.gmail.com',
+      port: Number(process.env.SMTP_PORT || 465),
+    },
+  })
 }
 
 async function register(req, res) {
@@ -229,4 +312,4 @@ async function resetPassword(req, res) {
   res.json({ message: 'Password reset successful' })
 }
 
-module.exports = { register, verifyOtp, login, logout, me, forgotPassword, resetPassword }
+module.exports = { register, verifyOtp, login, logout, me, forgotPassword, resetPassword, mailStatus }
