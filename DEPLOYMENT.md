@@ -1,6 +1,6 @@
 # Deployment Guide
 
-This repository now contains a frontend-only Next.js app in `frontend/`.
+This repository contains a Next.js frontend in `frontend/` and a Node/Express backend in `backend/`.
 
 ## Local development
 
@@ -14,6 +14,7 @@ This repository now contains a frontend-only Next.js app in `frontend/`.
 1. Push the repository to GitHub.
 2. Create a new Vercel project from the repository.
 3. Set the Root Directory to `frontend`.
-4. Deploy.
+4. Set `NEXT_PUBLIC_API_URL` in Vercel to the deployed backend URL, or rely on the built-in Next.js rewrite proxy.
+5. Deploy.
 
-No backend services or environment variables are required for the current design-only version.
+Backend deployment must also provide `RESEND_API_KEY` and `RESEND_FROM` (optional) so OTP emails can be sent reliably.
