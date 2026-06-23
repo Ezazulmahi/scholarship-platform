@@ -1,7 +1,6 @@
 const bcrypt = require('bcryptjs')
 const jwt = require('jsonwebtoken')
 const nodemailer = require('nodemailer')
-const { Resend } = require('resend')
 const User = require('../models/user')
 
 const COOKIE_NAME = 'scholarship_session'
@@ -37,24 +36,20 @@ function getOtpEmailContent(otp) {
   }
 }
 
-function readResendConfig() {
-  const apiKey = process.env.RESEND_API_KEY
-  if (!apiKey) return null
-
-  return {
-    apiKey,
-    from:
-      process.env.RESEND_FROM ||
-      process.env.EMAIL_FROM ||
-      'ScholarPath <onboarding@resend.dev>',
-  }
-}
-
 function readMailConfig() {
-  const user = process.env.EMAIL_USER || process.env.SMTP_USER || process.env.GMAIL_USER
-  const pass = process.env.EMAIL_PASS || process.env.SMTP_PASS || process.env.GMAIL_APP_PASSWORD
+  const user =
+    process.env.EMAIL_USER ||
+    process.env.SMTP_USER ||
+    process.env.GMAIL_USER
+
+  const pass =
+    process.env.EMAIL_PASS ||
+    process.env.SMTP_PASS ||
+    process.env.GMAIL_APP_PASSWORD
+
   const host = process.env.SMTP_HOST || 'smtp.gmail.com'
   const port = Number(process.env.SMTP_PORT || 465)
+
   const secure =
     process.env.SMTP_SECURE !== undefined
       ? process.env.SMTP_SECURE === 'true'
@@ -91,28 +86,6 @@ function createTransporter() {
   })
 }
 
-async function sendEmailWithResend({ to, subject, text, html }) {
-  const config = readResendConfig()
-  if (!config) {
-    throw new Error('RESEND_API_KEY is not configured')
-  }
-
-  const resend = new Resend(config.apiKey)
-  const { data, error } = await resend.emails.send({
-    from: config.from,
-    to,
-    subject,
-    text,
-    html,
-  })
-
-  if (error) {
-    throw new Error(error.message || JSON.stringify(error))
-  }
-
-  return data?.id || 'resend-accepted'
-}
-
 async function sendEmailWithSmtp({ to, subject, text, html }) {
   const mailConfig = readMailConfig()
   const transporter = createTransporter()
@@ -131,34 +104,30 @@ async function sendEmailWithSmtp({ to, subject, text, html }) {
 async function sendOtpEmail(to, otp, subject) {
   const recipient = normalizeEmail(to)
   const content = getOtpEmailContent(otp)
-  const resendConfig = readResendConfig()
 
-  const message = {
+  const messageId = await sendEmailWithSmtp({
     to: recipient,
     subject,
     text: content.text,
     html: content.html,
-  }
+  })
 
-  const provider = resendConfig ? 'resend' : 'smtp'
-  const messageId = resendConfig
-    ? await sendEmailWithResend(message)
-    : await sendEmailWithSmtp(message)
-
-  console.log(`OTP email accepted by ${provider} for:`, recipient, '| MessageId:', messageId)
+  console.log('OTP sent via SMTP:', recipient, messageId)
 }
 
 function mailStatus(req, res) {
-  const resendConfig = readResendConfig()
-  const smtpUser = process.env.EMAIL_USER || process.env.SMTP_USER || process.env.GMAIL_USER
-  const smtpPass = process.env.EMAIL_PASS || process.env.SMTP_PASS || process.env.GMAIL_APP_PASSWORD
+  const smtpUser =
+    process.env.EMAIL_USER ||
+    process.env.SMTP_USER ||
+    process.env.GMAIL_USER
+
+  const smtpPass =
+    process.env.EMAIL_PASS ||
+    process.env.SMTP_PASS ||
+    process.env.GMAIL_APP_PASSWORD
 
   res.json({
-    provider: resendConfig ? 'resend' : 'smtp',
-    resend: {
-      configured: Boolean(resendConfig),
-      from: resendConfig?.from || null,
-    },
+    provider: 'smtp',
     smtp: {
       configured: Boolean(smtpUser && smtpPass),
       userConfigured: Boolean(smtpUser),
@@ -177,6 +146,7 @@ async function register(req, res) {
 
   const normalizedEmail = normalizeEmail(email)
   const existing = await User.findByEmail(normalizedEmail)
+
   if (existing?.is_verified) {
     return res.status(409).json({ error: 'Email already registered' })
   }
@@ -233,7 +203,12 @@ async function verifyOtp(req, res) {
 
   await User.update(user.id, { is_verified: true, otp: null, otp_expires_at: null })
 
-  const token = jwt.sign({ id: user.id, email: user.email }, process.env.JWT_SECRET, { expiresIn: '7d' })
+  const token = jwt.sign(
+    { id: user.id, email: user.email },
+    process.env.JWT_SECRET,
+    { expiresIn: '7d' }
+  )
+
   res.cookie(COOKIE_NAME, token, COOKIE_OPTIONS)
   res.json({ user: { id: user.id, name: user.name, email: user.email } })
 }
@@ -244,14 +219,23 @@ async function login(req, res) {
 
   const user = await User.findByEmail(normalizeEmail(email))
   if (!user) return res.status(401).json({ error: 'Invalid email or password' })
+
   if (!user.is_verified) {
-    return res.status(403).json({ error: 'Please verify your email first', needsVerification: true })
+    return res.status(403).json({
+      error: 'Please verify your email first',
+      needsVerification: true,
+    })
   }
 
   const valid = await bcrypt.compare(password, user.password_hash)
   if (!valid) return res.status(401).json({ error: 'Invalid email or password' })
 
-  const token = jwt.sign({ id: user.id, email: user.email }, process.env.JWT_SECRET, { expiresIn: '7d' })
+  const token = jwt.sign(
+    { id: user.id, email: user.email },
+    process.env.JWT_SECRET,
+    { expiresIn: '7d' }
+  )
+
   res.cookie(COOKIE_NAME, token, COOKIE_OPTIONS)
   res.json({ user: { id: user.id, name: user.name, email: user.email } })
 }
@@ -282,10 +266,13 @@ async function forgotPassword(req, res) {
 
   const normalizedEmail = normalizeEmail(email)
   const user = await User.findByEmail(normalizedEmail)
+
   if (user) {
     const otp = generateOtp()
     const otpExpiresAt = new Date(Date.now() + 10 * 60 * 1000).toISOString()
+
     await User.update(user.id, { otp, otp_expires_at: otpExpiresAt })
+
     try {
       await sendOtpEmail(normalizedEmail, otp, 'Reset your ScholarPath password')
     } catch (err) {
@@ -299,17 +286,33 @@ async function forgotPassword(req, res) {
 
 async function resetPassword(req, res) {
   const { email, otp, newPassword } = req.body
-  if (!email || !otp || !newPassword) return res.status(400).json({ error: 'All fields are required' })
+  if (!email || !otp || !newPassword) {
+    return res.status(400).json({ error: 'All fields are required' })
+  }
 
   const user = await User.findByEmail(normalizeEmail(email))
+
   if (!user || user.otp !== otp || new Date(user.otp_expires_at) < new Date()) {
     return res.status(400).json({ error: 'Invalid or expired OTP' })
   }
 
   const passwordHash = await bcrypt.hash(newPassword, 12)
-  await User.update(user.id, { password_hash: passwordHash, otp: null, otp_expires_at: null })
+  await User.update(user.id, {
+    password_hash: passwordHash,
+    otp: null,
+    otp_expires_at: null,
+  })
 
   res.json({ message: 'Password reset successful' })
 }
 
-module.exports = { register, verifyOtp, login, logout, me, forgotPassword, resetPassword, mailStatus }
+module.exports = {
+  register,
+  verifyOtp,
+  login,
+  logout,
+  me,
+  forgotPassword,
+  resetPassword,
+  mailStatus,
+}
