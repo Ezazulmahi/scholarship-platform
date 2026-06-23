@@ -83,6 +83,7 @@ function createTransporter() {
     port: mailConfig.port,
     secure: mailConfig.secure,
     auth: mailConfig.auth,
+    family: 4 
   })
 }
 
