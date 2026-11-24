@@ -1,22 +1,32 @@
+const crypto = require('crypto')
 const bcrypt = require('bcryptjs')
 const jwt = require('jsonwebtoken')
 const nodemailer = require('nodemailer')
 const User = require('../models/user')
 
 const COOKIE_NAME = 'scholarship_session'
-const COOKIE_OPTIONS = {
+const COOKIE_BASE = {
   httpOnly: true,
   secure: true,
   sameSite: 'none',
-  maxAge: 7 * 24 * 60 * 60 * 1000,
 }
+const COOKIE_OPTIONS = { ...COOKIE_BASE, maxAge: 7 * 24 * 60 * 60 * 1000 }
+const MIN_PASSWORD_LENGTH = 8
+const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
 
 function normalizeEmail(email) {
-  return email.toLowerCase().trim()
+  return String(email).toLowerCase().trim()
 }
 
 function generateOtp() {
-  return Math.floor(100000 + Math.random() * 900000).toString()
+  return crypto.randomInt(100000, 1000000).toString()
+}
+
+function otpMatches(stored, given) {
+  if (!stored || typeof given !== 'string') return false
+  const a = Buffer.from(String(stored))
+  const b = Buffer.from(given.trim())
+  return a.length === b.length && crypto.timingSafeEqual(a, b)
 }
 
 function getOtpEmailContent(otp) {
@@ -141,8 +151,14 @@ function mailStatus(req, res) {
 
 async function register(req, res) {
   const { name, email, password } = req.body
-  if (!name?.trim() || !email?.trim() || !password) {
+  if (typeof name !== 'string' || typeof email !== 'string' || typeof password !== 'string' || !name.trim() || !email.trim()) {
     return res.status(400).json({ error: 'Name, email and password are required' })
+  }
+  if (!EMAIL_RE.test(email.trim()) || email.length > 254) {
+    return res.status(400).json({ error: 'Enter a valid email address' })
+  }
+  if (password.length < MIN_PASSWORD_LENGTH) {
+    return res.status(400).json({ error: `Password must be at least ${MIN_PASSWORD_LENGTH} characters` })
   }
 
   const normalizedEmail = normalizeEmail(email)
@@ -198,8 +214,8 @@ async function verifyOtp(req, res) {
   if (!email || !otp) return res.status(400).json({ error: 'Email and OTP are required' })
 
   const user = await User.findByEmail(normalizeEmail(email))
-  if (!user) return res.status(404).json({ error: 'User not found' })
-  if (user.otp !== otp) return res.status(400).json({ error: 'Invalid OTP' })
+  if (!user) return res.status(400).json({ error: 'Invalid OTP' })
+  if (!otpMatches(user.otp, otp)) return res.status(400).json({ error: 'Invalid OTP' })
   if (new Date(user.otp_expires_at) < new Date()) return res.status(400).json({ error: 'OTP has expired' })
 
   await User.update(user.id, { is_verified: true, otp: null, otp_expires_at: null })
@@ -242,7 +258,7 @@ async function login(req, res) {
 }
 
 function logout(req, res) {
-  res.clearCookie(COOKIE_NAME)
+  res.clearCookie(COOKIE_NAME, COOKIE_BASE)
   res.json({ message: 'Logged out' })
 }
 
@@ -256,7 +272,7 @@ async function me(req, res) {
     if (!user) return res.status(401).json({ error: 'User not found' })
     res.json({ user })
   } catch {
-    res.clearCookie(COOKIE_NAME)
+    res.clearCookie(COOKIE_NAME, COOKIE_BASE)
     res.status(401).json({ error: 'Invalid session' })
   }
 }
@@ -290,10 +306,13 @@ async function resetPassword(req, res) {
   if (!email || !otp || !newPassword) {
     return res.status(400).json({ error: 'All fields are required' })
   }
+  if (typeof newPassword !== 'string' || newPassword.length < MIN_PASSWORD_LENGTH) {
+    return res.status(400).json({ error: `Password must be at least ${MIN_PASSWORD_LENGTH} characters` })
+  }
 
   const user = await User.findByEmail(normalizeEmail(email))
 
-  if (!user || user.otp !== otp || new Date(user.otp_expires_at) < new Date()) {
+  if (!user || !otpMatches(user.otp, otp) || new Date(user.otp_expires_at) < new Date()) {
     return res.status(400).json({ error: 'Invalid or expired OTP' })
   }
 
